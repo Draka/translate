@@ -43,19 +43,25 @@ module.exports = (req, res, next) => {
       for (const key in body.json) {
         if (Object.hasOwnProperty.call(body.json, key)) {
           const text = body.json[key];
-          let model = await models.Key.findOne({ projectID: body.projectID, key });
-          if (model) {
-            model.text = text;
+          if (text) {
+            let model = await models.Key.findOne({ projectID: body.projectID, key });
+            if (model) {
+              // el modelo existe, si es diferente debe actalizar las traducciones
+              if (model.text !== text) {
+                model.text = text;
+                await model.save();
+                await models.Text.deleteMany({ keyID: model._id });
+              }
+            } else {
+              model = new models.Key({
+                projectID: body.projectID,
+                key,
+                text,
+                lang: 'es',
+              });
+            }
             await model.save();
-          } else {
-            model = new models.Key({
-              projectID: body.projectID,
-              key,
-              text,
-              lang: 'es',
-            });
           }
-          await model.save();
         }
       }
     }],

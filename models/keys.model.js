@@ -23,14 +23,6 @@ const schema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
-function preUpdate(result, next) {
-  if (result.key) {
-    result.key = result.key.toLowerCase();
-  }
-  next();
-}
-schema.post('validate', preUpdate);
-
 schema.index({ projectID: 1, key: 1 }, { unique: true });
 const Model = mongoose.model(`${appCnf.dbPrefix}keys`, schema);
 

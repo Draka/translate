@@ -2,7 +2,7 @@
 module.exports = (req, res, next) => {
   const body = _.pick(req.query, ['key']);
 
-  const limit = Math.min(Math.max(1, req.query.limit) || 200, 500);
+  const limit = Math.min(Math.max(1, req.query.limit) || 500, 500);
   const page = Math.max(0, req.query.page) || 0;
 
   async.auto({
@@ -13,7 +13,7 @@ module.exports = (req, res, next) => {
           { text: { $regex: req.query.q, $options: 'i' } },
         ];
       }
-      body.projectID = req.params.projectID;
+      body.projectID = mongoose.Types.ObjectId(req.params.projectID);
       return cb();
     },
     project: ['validate', (results, cb) => {
@@ -28,13 +28,37 @@ module.exports = (req, res, next) => {
         return cb(listErrors(404, null, [{ field: 'projectID', msg: 'El registro no existe.' }]));
       }
       models.Key
-        .find(body)
-        .limit(limit)
-        .skip(limit * page)
-        .sort({
-          slug: 1,
-        })
-        .lean()
+        .aggregate([
+          {
+            $match: body,
+          },
+          {
+            $lookup: {
+              from: 'texts',
+              localField: '_id',
+              foreignField: 'keyID',
+              as: 'texts',
+            },
+          },
+          {
+            $addFields: {
+              textCount: {
+                $size: '$texts',
+              },
+            },
+          },
+          {
+            $sort: {
+              textCount: 1,
+            },
+          },
+          {
+            $limit: limit,
+          },
+          {
+            $skip: limit * page,
+          },
+        ])
         .exec(cb);
     }],
     count: ['project', (_results, cb) => {
